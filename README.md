@@ -89,6 +89,21 @@ While waiting, the History page says **"Waiting for a free slot"** instead of sh
 **Live status.** The History page uses Inertia's `usePoll` to reload just its data every 3s, and only
 while something is in flight.
 
+## Admin report (stretch goal)
+
+`/admin/report`, for operators only, shows each **UTC day of completion** (the day Pixelforge bills on)
+and, per user within it: credits spent, Pixelforge cost and profit, as exact nine-decimal amounts. Each day
+is compared with `GET /v1/usage` for this environment's key and marked ✓ only if the billed
+generation count and cost match to the nanodollar. If Pixelforge is unreachable, the report still renders
+our side. Query: [`app/Billing/UsageReport.php`](app/Billing/UsageReport.php).
+
+Admin access is a `users.is_admin` flag (not mass-assignable) behind a `view-admin-report` gate,
+granted with:
+
+```bash
+php artisan app:make-admin someone@example.com            # --revoke to remove
+```
+
 ## Known limitations
 
 - If every POST attempt _times out_ (rather than being rejected), Pixelforge may have created the
