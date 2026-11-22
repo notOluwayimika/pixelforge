@@ -47,7 +47,8 @@ class StoreGeneratedImage implements ShouldQueue
         $png = Http::timeout(30)->get($url)->throw()->body();
         $path = "generations/{$generation->id}.png";
 
-        Storage::disk(config('pixelforge.image_disk'))->put($path, $png, 'public');
+        // No per-file visibility: Cloud Object Storage (R2) sets visibility per bucket and rejects ACLs.
+        Storage::disk(config('pixelforge.image_disk'))->put($path, $png);
         $generation->update(['image_path' => $path]);
     }
 }
