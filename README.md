@@ -8,16 +8,16 @@ A Laravel 13 + Vue 3 + Inertia app where signed-in users generate images through
 
 ## What to look at first
 
-| Concern | Where |
-|---|---|
-| Money type and markup | [`app/Billing/Nanodollars.php`](app/Billing/Nanodollars.php) |
-| Cost from tokens × rates | [`app/Pixelforge/Rates.php`](app/Pixelforge/Rates.php) |
-| Estimate before submit | [`app/Billing/CostEstimator.php`](app/Billing/CostEstimator.php) |
-| Every status change (and the only place cost is written) | [`app/Pixelforge/GenerationStateMachine.php`](app/Pixelforge/GenerationStateMachine.php) |
-| Webhooks: signature, dedupe, ordering | [`app/Http/Controllers/Webhooks/PixelforgeWebhookController.php`](app/Http/Controllers/Webhooks/PixelforgeWebhookController.php) |
-| Rate limits, concurrency, overloads, idempotency | [`app/Jobs/SubmitGeneration.php`](app/Jobs/SubmitGeneration.php) |
-| Lost webhooks | [`app/Console/Commands/ReconcileGenerations.php`](app/Console/Commands/ReconcileGenerations.php) |
-| Tests that pin all of the above | [`tests/Feature/Pixelforge`](tests/Feature/Pixelforge), [`tests/Unit/Billing`](tests/Unit/Billing) |
+| Concern                                                  | Where                                                                                                                            |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Money type and markup                                    | [`app/Billing/Nanodollars.php`](app/Billing/Nanodollars.php)                                                                     |
+| Cost from tokens × rates                                 | [`app/Pixelforge/Rates.php`](app/Pixelforge/Rates.php)                                                                           |
+| Estimate before submit                                   | [`app/Billing/CostEstimator.php`](app/Billing/CostEstimator.php)                                                                 |
+| Every status change (and the only place cost is written) | [`app/Pixelforge/GenerationStateMachine.php`](app/Pixelforge/GenerationStateMachine.php)                                         |
+| Webhooks: signature, dedupe, ordering                    | [`app/Http/Controllers/Webhooks/PixelforgeWebhookController.php`](app/Http/Controllers/Webhooks/PixelforgeWebhookController.php) |
+| Rate limits, concurrency, overloads, idempotency         | [`app/Jobs/SubmitGeneration.php`](app/Jobs/SubmitGeneration.php)                                                                 |
+| Lost webhooks                                            | [`app/Console/Commands/ReconcileGenerations.php`](app/Console/Commands/ReconcileGenerations.php)                                 |
+| Tests that pin all of the above                          | [`tests/Feature/Pixelforge`](tests/Feature/Pixelforge), [`tests/Unit/Billing`](tests/Unit/Billing)                               |
 
 ## Money
 
@@ -41,8 +41,8 @@ A Laravel 13 + Vue 3 + Inertia app where signed-in users generate images through
 Two of the four token counts are only known after completion (prompt tokens vary ±15%; reasoning
 varies by quality). The Generate page shows **"about $X, at most $Y"**:
 
-- *typical*: `ceil(chars / 4)` text tokens, midpoint reasoning
-- *max*: text tokens + 15% (rounded up), maximum reasoning. This reproduces the docs' worked example
+- _typical_: `ceil(chars / 4)` text tokens, midpoint reasoning
+- _max_: text tokens + 15% (rounded up), maximum reasoning. This reproduces the docs' worked example
   ($0.373875) exactly.
 
 Both are stored on the generation. The estimate is computed server-side by the same code that bills,
@@ -50,14 +50,14 @@ so the browser never does money maths. Token tables and rates come from `GET /v1
 
 ## Correctness under an unreliable provider
 
-**Idempotency.** The generation row (with a UUID `idempotency_key`) is saved *before* we call
+**Idempotency.** The generation row (with a UUID `idempotency_key`) is saved _before_ we call
 Pixelforge, and every POST attempt for that row sends the same key, so a retried request can't
 create or bill a second generation. Our row id also goes in `metadata`, because a webhook can arrive
-before our POST returns. A user-initiated **Retry** of a failed generation creates a *new* row with a
+before our POST returns. A user-initiated **Retry** of a failed generation creates a _new_ row with a
 new key, which keeps one row = one provider generation for reconciliation.
 
 **State machine.** `submitting → queued → processing → succeeded | failed`. Webhooks, the submit
-job and the reconciler all apply a *snapshot of the generation object* through
+job and the reconciler all apply a _snapshot of the generation object_ through
 `GenerationStateMachine`, which:
 
 1. locks the row (`SELECT … FOR UPDATE`) for the whole read-decide-write, and
@@ -67,7 +67,7 @@ Cost is written only on the move into `succeeded`, so it's recorded once even if
 poll race each other.
 
 **Webhooks.** We verify the HMAC-SHA256 signature over the raw body, compare in constant time, and reject
-timestamps more than 5 minutes old. Then, *in one transaction*, we insert the event id into
+timestamps more than 5 minutes old. Then, _in one transaction_, we insert the event id into
 `webhook_events` (unique) and apply the snapshot. A duplicate hits the unique index and gets a `200`
 without doing anything. If applying fails, the insert rolls back too and we return `500`, so
 Pixelforge's retry isn't mistaken for a duplicate. Image downloads (signed URLs expire after 24h) are
@@ -75,11 +75,11 @@ queued, which keeps the endpoint fast.
 
 **Limits.** Submission runs in a queued job:
 
-| Pixelforge says | We do |
-|---|---|
+| Pixelforge says                                                                          | We do                                                                                             |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `429 rate_limit_exceeded`, `429 concurrency_limit_exceeded`, `503 overloaded`, other 5xx | wait for `Retry-After`, doubling each time (capped at 60s, plus jitter); give up after 10 minutes |
-| `429 daily_limit_exceeded`, `400 content_policy_violation`, `422`, `409` | fail immediately (retrying can't help), not charged |
-| timeout / connection error | retry with the same idempotency key (safe) |
+| `429 daily_limit_exceeded`, `400 content_policy_violation`, `422`, `409`                 | fail immediately (retrying can't help), not charged                                               |
+| timeout / connection error                                                               | retry with the same idempotency key (safe)                                                        |
 
 While waiting, the History page says **"Waiting for a free slot"** instead of showing an error.
 
@@ -91,7 +91,7 @@ while something is in flight.
 
 ## Known limitations
 
-- If every POST attempt *times out* (rather than being rejected), Pixelforge may have created the
+- If every POST attempt _times out_ (rather than being rejected), Pixelforge may have created the
   generation even though we mark it `submission_gave_up`. The idempotency key prevents duplicates,
   but such an orphan would show up in `/v1/usage` without a matching charge. A fix would match orphans
   by `metadata.generation_id` via `GET /v1/generations` during reconciliation.
@@ -113,7 +113,8 @@ php artisan schedule:work             # reconciler (separate terminal)
 
 Set `PIXELFORGE_API_KEY` and `PIXELFORGE_WEBHOOK_SECRET` from a Pixelforge API key created for
 local use, and point its webhook URL at a tunnel (e.g. `expose share http://localhost:8000`)
-+ `/webhooks/pixelforge`.
+
+- `/webhooks/pixelforge`.
 
 Prompt keywords for exercising failure paths: `[fail]`, `[slow]`, `[duplicate]`, `[blocked]`,
 `[overloaded]`, `[succeed]`.
