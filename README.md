@@ -104,6 +104,26 @@ granted with:
 php artisan app:make-admin someone@example.com            # --revoke to remove
 ```
 
+## Credit balances (stretch goal)
+
+Balances are an append-only ledger ([`app/Billing/Credits.php`](app/Billing/Credits.php),
+`credit_ledger` table). The balance is never stored; it is `SUM(amount)`, so it can't drift from its history.
+
+| Event                             | Ledger rows (nanodollars)                                                     |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| Buy credits ($1 / $5 / $20, fake) | `purchase +N`                                                                 |
+| Submit                            | `hold −max estimate`, refused if the balance is below the max                 |
+| Succeeded                         | `release +max`, `charge −actual` (actual ≤ max, so the difference comes back) |
+| Failed / rejected                 | `release +max` (failures are free)                                            |
+
+- **No overspending while generations are in flight:** holds count against the balance, and placing a
+  hold locks the user's row (`SELECT … FOR UPDATE`), so two simultaneous submits can't both spend the
+  same money.
+- **Exactly once:** `UNIQUE(generation_id, kind)` means a generation can't be held, released or
+  charged twice, whatever calls in. Settlement happens inside the state machine's transaction, so a
+  balance never disagrees with its generation's status.
+- Generations created before balances existed have no hold and are left alone.
+
 ## Known limitations
 
 - If every POST attempt _times out_ (rather than being rejected), Pixelforge may have created the

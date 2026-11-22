@@ -2,6 +2,7 @@
 
 namespace App\Pixelforge;
 
+use App\Billing\Credits;
 use App\Billing\Nanodollars;
 use App\Enums\GenerationStatus;
 use App\Jobs\StoreGeneratedImage;
@@ -21,9 +22,14 @@ use Illuminate\Support\Facades\Log;
  * 2. Only move forward (GenerationStatus::canMoveTo). A late "processing" after "succeeded" is a
  *    no-op, and a final status never changes. Cost is written only on the move into succeeded,
  *    so it is recorded exactly once.
+ *
+ * Credits move in the same transaction as the status: settle on success, release on failure.
+ * So a balance can never disagree with the generation it paid for.
  */
 final class GenerationStateMachine
 {
+    public function __construct(private readonly Credits $credits) {}
+
     /**
      * Apply what Pixelforge says a generation looks like now. Returns null if it isn't ours.
      */
@@ -112,6 +118,9 @@ final class GenerationStateMachine
         $generation->image_url_expires_at = $snapshot->imageUrlExpiresAt;
         $generation->completed_at = $snapshot->completedAt;
 
+        // Release the max-estimate hold and take the actual charge.
+        $this->credits->settle($generation);
+
         // Download the PNG before the signed URL expires (24h). Queued so webhooks stay fast,
         // and only after commit so the job never sees the pre-success row.
         StoreGeneratedImage::dispatch($generation->id)->afterCommit();
@@ -126,5 +135,7 @@ final class GenerationStateMachine
         $generation->provider_cost = 0;
         $generation->charge = 0;
         $generation->completed_at = $completedAt ?? CarbonImmutable::now();
+
+        $this->credits->release($generation);
     }
 }

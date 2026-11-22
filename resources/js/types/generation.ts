@@ -26,6 +26,8 @@ export type Generation = {
 };
 
 export type Estimate = {
+    /** nanodollars, for comparing with the balance */
+    max_charge: number;
     typical_charge_formatted: string;
     max_charge_formatted: string;
     typical_tokens: Record<string, number>;

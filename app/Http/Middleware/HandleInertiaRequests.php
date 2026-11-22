@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Billing\Credits;
+use App\Billing\Nanodollars;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,6 +42,11 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+            ],
+            // A closure, so partial reloads that don't ask for it skip the query.
+            'credits' => fn () => $request->user() === null ? null : [
+                'balance' => $balance = app(Credits::class)->balance($request->user()),
+                'formatted' => Nanodollars::format($balance),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

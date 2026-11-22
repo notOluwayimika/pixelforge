@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router, usePoll } from '@inertiajs/vue3';
+import { Head, Link, router, usePage, usePoll } from '@inertiajs/vue3';
 import { ImageOff, Plus, RotateCw } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import GenerationController from '@/actions/App/Http/Controllers/GenerationController';
 import GenerationStatusBadge from '@/components/GenerationStatusBadge.vue';
 import Heading from '@/components/Heading.vue';
@@ -24,7 +24,8 @@ defineOptions({
 // Webhooks update the database; this is how the page finds out. Stops once all are final.
 const { start, stop } = usePoll(
     3000,
-    { only: ['generations', 'hasInFlight'] },
+    // credits too: the balance changes when a generation settles or is released.
+    { only: ['generations', 'hasInFlight', 'credits'] },
     { autoStart: props.hasInFlight },
 );
 
@@ -32,6 +33,9 @@ watch(
     () => props.hasInFlight,
     (inFlight) => (inFlight ? start() : stop()),
 );
+
+const page = usePage();
+const creditsError = computed(() => page.props.errors?.credits);
 
 const retrying = ref<string | null>(null);
 
@@ -66,6 +70,13 @@ function formatDate(iso: string) {
             <Button as-child>
                 <Link :href="create()"><Plus /> New generation</Link>
             </Button>
+        </div>
+
+        <div
+            v-if="creditsError"
+            class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+        >
+            {{ creditsError }}
         </div>
 
         <div

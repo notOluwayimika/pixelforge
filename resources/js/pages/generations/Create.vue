@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { Head, useForm, useHttp } from '@inertiajs/vue3';
+import { Head, Link, useForm, useHttp, usePage } from '@inertiajs/vue3';
 import { watchDebounced } from '@vueuse/core';
 import { Plus, X } from '@lucide/vue';
 import { computed, nextTick } from 'vue';
 import GenerationController from '@/actions/App/Http/Controllers/GenerationController';
+import BuyCredits from '@/components/BuyCredits.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { index as creditsIndex } from '@/routes/credits';
 import { create } from '@/routes/generations';
 import type { Estimate } from '@/types';
 
@@ -60,9 +62,22 @@ watchDebounced(
 
 const hasPrompt = computed(() => form.prompt.trim() !== '');
 
-const references = computed(() => form.reference_images);
 const atReferenceLimit = computed(
-    () => references.value.length >= MAX_REFERENCES,
+    () => form.reference_images.length >= MAX_REFERENCES,
+);
+
+// Balance (shared by the server on every page). Generating needs the MAX estimate available,
+// because that's what gets reserved. The server enforces the same rule; this just explains it early.
+const page = usePage();
+const credits = computed(() => page.props.credits);
+const cannotAfford = computed(
+    () =>
+        estimate.response !== null &&
+        credits.value !== null &&
+        credits.value.balance < estimate.response.max_charge,
+);
+const creditsError = computed(
+    () => (form.errors as Record<string, string | undefined>).credits,
 );
 
 // Errors come back keyed "reference_images" or "reference_images.2"; show them all together.
@@ -239,16 +254,35 @@ function submit() {
                         </p>
                     </div>
                     <Spinner v-else />
+                    <p class="mt-2 text-xs text-muted-foreground">
+                        Balance:
+                        <Link :href="creditsIndex()" class="underline">
+                            {{ credits?.formatted ?? '$0.00' }}
+                        </Link>
+                    </p>
                 </div>
 
                 <Button
                     type="submit"
                     size="lg"
-                    :disabled="form.processing || !hasPrompt"
+                    :disabled="form.processing || !hasPrompt || cannotAfford"
                 >
                     <Spinner v-if="form.processing" />
                     Generate
                 </Button>
+            </div>
+
+            <div
+                v-if="cannotAfford || creditsError"
+                class="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+            >
+                <p>
+                    {{
+                        creditsError ??
+                        `This generation can cost up to ${estimate.response?.max_charge_formatted}, but your balance is ${credits?.formatted ?? '$0.00'}. Buy credits to continue.`
+                    }}
+                </p>
+                <BuyCredits />
             </div>
         </form>
     </div>

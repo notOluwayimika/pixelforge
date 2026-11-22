@@ -20,6 +20,8 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            /** balance in nanodollars (for comparisons) and pre-formatted for display */
+            credits: { balance: number; formatted: string } | null;
             [key: string]: unknown;
         };
     }

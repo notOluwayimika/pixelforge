@@ -1,5 +1,6 @@
 <?php
 
+use App\Billing\Credits;
 use App\Enums\GenerationStatus;
 use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
@@ -12,6 +13,7 @@ beforeEach(function () {
     Queue::fake();
     Http::fake(['*/v1/pricing' => Http::response(pixelforgeFixture('pricing'))]);
     $this->user = User::factory()->create();
+    app(Credits::class)->purchase($this->user, 20);
 });
 
 it('requires login', function () {
