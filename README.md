@@ -3,7 +3,7 @@
 A Laravel 13 + Vue 3 + Inertia app where signed-in users generate images through the (simulated)
 [Pixelforge API](https://pixelforge.promptedit.dev/docs) and pay Pixelforge's cost plus 25%.
 
-- **Live:** _deployed URL goes here_
+- **Live:** https://pixelforge-production-2mr69d.laravel.cloud (Laravel Cloud, eu-west-2)
 - **Design notes:** [docs/DESIGN.md](docs/DESIGN.md)
 
 ## What to look at first
